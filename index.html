@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Inventario</title>
+  <style>
+    :root {
+      --bg: #4c1d95;
+      --card: #ffffffea;
+      --accent: #7c3aed;
+      --muted: #222;
+      --glass: rgba(255, 255, 255, 0.96);
+      --success: #d1f7dc;
+      --danger: #ffd6d6;
+      --toast-info: #fff7e6;
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    html,
+    body {
+      height: 100%
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial;
+      background:
+        radial-gradient(1200px 600px at 10% 10%, rgba(124, 58, 237, 0.12), transparent 10%),
+        radial-gradient(900px 500px at 90% 90%, rgba(79, 70, 229, 0.06), transparent 10%),
+        linear-gradient(180deg, var(--bg), #2a0f60);
+      color: #fff;
+      padding: 22px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .app {
+      width: 85%;
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 20px;
+      align-items: start;
+      min-height: 70vh;
+    }
+
+    .sidebar {
+      background: var(--card);
+      color: var(--muted);
+      padding: 18px;
+      border-radius: 14px;
+      box-shadow: 0 12px 34px rgba(10, 10, 20, 0.28);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .logo {
+      font-weight: 800;
+      font-size: 18px;
+      color: var(--bg);
+      margin-bottom: 12px
+    }
+
+    .nav-button {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      background: #fff;
+      margin-bottom: 10px;
+      color: var(--muted);
+      white-space: nowrap;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      transition: transform .12s ease, box-shadow .12s ease;
+    }
+
+    .nav-button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08)
+    }
+
+    .nav-button.active {
+      background: linear-gradient(90deg, var(--bg), var(--accent));
+      color: #fff;
+      box-shadow: 0 10px 30px rgba(74, 20, 140, 0.25)
+    }
+
+    .main {
+      display: flex;
+      flex-direction: column;
+      gap: 18px
+    }
+
+    .panel {
+      background: var(--card);
+      padding: 20px;
+      border-radius: 14px;
+      box-shadow: 0 12px 34px rgba(10, 10, 20, 0.16);
+      color: var(--muted);
+      min-height: 120px;
+      transition: all .22s ease;
+      min-width: 0;
+      border: 1px solid rgba(0, 0, 0, 0.04);
+    }
+
+    .panel h2 {
+      margin: 0 0 14px 0;
+      color: var(--bg);
+      font-size: 20px
+    }
+
+    form .row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      color: var(--muted)
+    }
+
+    input,
+    select,
+    textarea,
+    button {
+      font-family: inherit;
+      font-size: 14px
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      background: linear-gradient(180deg, #fff, #fafafa);
+      color: #000;
+      outline: none;
+      transition: box-shadow .12s ease, transform .08s ease;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      box-shadow: 0 8px 24px rgba(80, 20, 140, 0.06);
+      transform: translateY(-1px)
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer
+    }
+
+    .btn.primary {
+      background: linear-gradient(90deg, var(--bg), var(--accent));
+      color: #fff;
+      box-shadow: 0 8px 18px rgba(92, 33, 150, 0.22);
+      font-weight: 700
+    }
+
+    .btn.ghost {
+      background: #fff;
+      color: var(--muted);
+      border: 1px solid rgba(0, 0, 0, 0.06)
+    }
+
+    .btn.icon {
+      display: inline-grid;
+      place-items: center;
+      padding: 8px;
+      border-radius: 10px
+    }
+
+    .muted {
+      color: rgba(0, 0, 0, 0.6);
+      font-size: 13px
+    }
+
+    .items-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px
+    }
+
+    .item-card {
+      background: linear-gradient(180deg, #fff, #fcfcfd);
+      padding: 14px;
+      border-radius: 12px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      min-width: 0;
+      border: 1px solid rgba(0, 0, 0, 0.04);
+      transition: transform .12s ease, box-shadow .12s ease;
+    }
+
+    .item-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 18px 40px rgba(12, 10, 25, 0.08)
+    }
+
+    .item-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0
+    }
+
+    .item-meta b {
+      color: var(--bg);
+      font-size: 16px
+    }
+
+    .item-meta .description {
+      color: rgba(0, 0, 0, 0.55);
+      font-size: 13px;
+      line-height: 1.15;
+      max-width: 52ch;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+
+    .item-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-end
+    }
+
+    .small {
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: #fff;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      cursor: pointer;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center
+    }
+
+    .small.edit {
+      background: linear-gradient(90deg, #fff, #f7f3ff);
+      border: 1px solid rgba(124, 58, 237, 0.12);
+      color: var(--bg)
+    }
+
+    .small.del {
+      background: #fff6f7;
+      border: 1px solid rgba(255, 0, 50, 0.06);
+      color: #a33
+    }
+
+    .category-pill {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: #000;
+      margin-top: 6px;
+      font-weight: 700;
+      box-shadow: 0 4px 12px rgba(12, 10, 25, 0.04);
+      border: 1px solid rgba(0, 0, 0, 0.03);
+    }
+
+    .topbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      align-items: center
+    }
+
+    .filters {
+      display: flex;
+      gap: 8px;
+      align-items: center
+    }
+
+    .stats {
+      display: flex;
+      gap: 12px;
+      align-items: center
+    }
+
+    .stat-card {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), #fff);
+      padding: 8px 10px;
+      border-radius: 10px;
+      color: var(--muted);
+      font-weight: 700
+    }
+
+    .hidden {
+      display: none
+    }
+
+    .search-input {
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      width: min(300px, 38vw);
+      box-shadow: 0 8px 20px rgba(9, 7, 20, 0.04);
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 8px;
+      align-items: center
+    }
+
+    .toast-wrap {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 9999
+    }
+
+    .toast {
+      min-width: 180px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      box-shadow: 0 12px 34px rgba(10, 10, 20, 0.15);
+      font-weight: 700;
+      color: #000;
+      background: #fff;
+      opacity: 0;
+      transform: translateY(8px) scale(.98);
+      transition: opacity .18s, transform .18s
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0) scale(1)
+    }
+
+    .toast.success {
+      background: var(--success)
+    }
+
+    .toast.error {
+      background: var(--danger)
+    }
+
+    .toast.info {
+      background: var(--toast-info)
+    }
+
+    @media(max-width:980px) {
+      .app {
+        display: flex;
+        flex-direction: column;
+        padding-bottom: 60px;
+        width: 85%;
+        margin: 0 auto
+      }
+
+      .sidebar {
+        order: -1;
+        display: flex;
+        flex-direction: row;
+        gap: 8px;
+        padding: 12px;
+        align-items: center;
+        overflow: auto
+      }
+
+      .logo {
+        display: none
+      }
+
+      .nav-button {
+        margin-bottom: 0;
+        flex: 0 0 auto;
+        padding: 10px 14px
+      }
+
+      .items-list {
+        grid-template-columns: 1fr
+      }
+
+      .main {
+        display: flex;
+        flex-direction: row;
+        gap: 12px
+      }
+
+      #viewAdd {
+        flex: 7;
+        min-width: 0
+      }
+
+      #viewInventory {
+        flex: 3;
+        min-width: 0;
+        overflow: auto
+      }
+    }
+
+    @media(max-width:560px) {
+      .main {
+        flex-direction: column
+      }
+
+      #viewAdd,
+      #viewInventory {
+        flex: unset;
+        width: 100%
+      }
+
+      .search-input {
+        width: 100%
+      }
+
+      .items-list {
+        grid-template-columns: 1fr
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo">Inventario</div>
+      <div id="btnAdd" class="nav-button active">Agregar</div>
+      <div id="btnInventory" class="nav-button">Inventario</div>
+    </aside>
+
+    <main class="main">
+      <section id="viewAdd" class="panel">
+        <h2>Agregar / Editar</h2>
+        <form id="itemForm" autocomplete="off" novalidate>
+          <input type="hidden" id="itemId" />
+
+          <div class="row">
+            <div style="flex:1">
+              <label>Nombre</label>
+              <input id="name" required />
+            </div>
+            <div style="width:140px">
+              <label>Cantidad</label>
+              <input id="quantity" type="number" min="0" value="1" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div style="flex:1">
+              <label>Categoría</label>
+              <select id="category"></select>
+            </div>
+            <div style="width:140px">
+              <label>Nueva</label>
+              <input id="newCategory" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div style="flex:1">
+              <label>Precio</label>
+              <input id="price" type="number" min="0" step="0.01" placeholder="0.00" />
+            </div>
+            <div style="width:140px">
+              <label>Moneda</label>
+              <select id="currency">
+                <option value="ARS">ARS</option>
+                <option value="USD">USD</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="margin-bottom:12px">
+            <label>Descripción</label>
+            <textarea id="description"></textarea>
+          </div>
+
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn primary" type="submit">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden focusable="false">
+                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+              Guardar
+            </button>
+            <button type="button" id="resetBtn" class="btn ghost">
+              Limpiar
+            </button>
+            <div style="flex:1"></div>
+            <div class="muted" id="status">No conectado</div>
+          </div>
+        </form>
+      </section>
+
+      <section id="viewInventory" class="panel hidden">
+        <div class="topbar">
+          <div class="controls-row">
+            <input id="search" class="search-input" placeholder="Buscar..." />
+            <select id="filterCategory">
+              <option value="">Todas las categorías</option>
+            </select>
+            <select id="sortBy">
+              <option value="name">Ordenar: Nombre</option>
+              <option value="price">Ordenar: Precio</option>
+              <option value="quantity">Ordenar: Cantidad</option>
+            </select>
+          </div>
+          <div class="stats">
+            <div class="stat-card" id="countItems">0 items</div>
+          </div>
+        </div>
+
+        <div id="items" class="items-list" aria-live="polite"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, setDoc, doc, deleteDoc, getDocs, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+    //Link de Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyDPVbxfvJO-w-j6lGL-TEFeHNJRV7G1UTo",
+      authDomain: "inventario-b8fc2.firebaseapp.com",
+      projectId: "inventario-b8fc2",
+      storageBucket: "inventario-b8fc2.firebasestorage.app",
+      messagingSenderId: "184222469977",
+      appId: "1:184222469977:web:83cc7bcc7116eb43494648"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function showToast(message, type = 'info', timeout = 3000) {
+      const wrap = document.getElementById('toastWrap'); if (!wrap) return;
+      const t = document.createElement('div'); t.className = 'toast ' + (type || '');
+      t.textContent = message; wrap.appendChild(t);
+      void t.offsetWidth; t.classList.add('show');
+      const id = setTimeout(() => { t.classList.remove('show'); setTimeout(() => wrap.removeChild(t), 200); }, timeout);
+      t.addEventListener('click', () => { clearTimeout(id); t.classList.remove('show'); setTimeout(() => wrap.removeChild(t), 120); });
+    }
+
+    function debounce(fn, wait = 250) { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); }; }
+
+    function hashStringToHsl(str) {
+      let h = 0;
+      for (let i = 0; i < str.length; i++) h = (h << 5) - h + str.charCodeAt(i) & 0xffffffff;
+      h = Math.abs(h) % 360;
+      return h;
+    }
+
+    function badgeStylesFromName(name) {
+      const hue = hashStringToHsl(name || 'default');
+      const bg = `hsl(${hue} 70% 90%)`;
+      const text = `hsl(${hue} 45% 20%)`;
+      const border = `hsl(${hue} 60% 80%)`;
+      return { background: bg, color: text, border: '1px solid ' + border };
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const btnAdd = document.getElementById('btnAdd');
+      const btnInventory = document.getElementById('btnInventory');
+      const viewAdd = document.getElementById('viewAdd');
+      const viewInventory = document.getElementById('viewInventory');
+
+      const itemForm = document.getElementById('itemForm');
+      const nameInput = document.getElementById('name');
+      const quantityInput = document.getElementById('quantity');
+      const categorySelect = document.getElementById('category');
+      const newCategoryInput = document.getElementById('newCategory');
+      const priceInput = document.getElementById('price');
+      const currencySelect = document.getElementById('currency');
+      const descriptionInput = document.getElementById('description');
+      const itemsDiv = document.getElementById('items');
+      const resetBtn = document.getElementById('resetBtn');
+      const statusSpan = document.getElementById('status');
+      const searchInput = document.getElementById('search');
+      const filterCategory = document.getElementById('filterCategory');
+      const sortBy = document.getElementById('sortBy');
+      const countItemsEl = document.getElementById('countItems');
+      const itemsCount = document.getElementById('itemsCount');
+
+      btnAdd.onclick = () => { viewAdd.classList.remove('hidden'); viewInventory.classList.add('hidden'); btnAdd.classList.add('active'); btnInventory.classList.remove('active'); }
+      btnInventory.onclick = () => { viewInventory.classList.remove('hidden'); viewAdd.classList.add('hidden'); btnInventory.classList.add('active'); btnAdd.classList.remove('active'); }
+
+      let itemsCache = [];
+      let categoriesCache = [];
+
+      async function fetchCategories() {
+        try {
+          const q = query(collection(db, 'categories'), orderBy('name'));
+          const snap = await getDocs(q);
+          categoriesCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          renderCategories();
+        } catch (e) {
+          console.error('fetchCategories error', e);
+          showToast('Error cargando categorías: ' + (e.message || e), 'error');
+        }
+      }
+
+      async function addCategory(name) {
+        name = String(name).trim(); if (!name) return null;
+        const exists = categoriesCache.find(c => c.name.toLowerCase() === name.toLowerCase()); if (exists) return exists;
+        try {
+          const ref = await addDoc(collection(db, 'categories'), { name });
+          const cat = { id: ref.id, name };
+          categoriesCache.push(cat);
+          renderCategories();
+          showToast('Categoría creada: ' + name, 'success');
+          return cat;
+        } catch (e) {
+          console.error('addCategory error', e);
+          showToast('Error creando categoría: ' + (e.message || e), 'error');
+          return null;
+        }
+      }
+
+      async function fetchItems() {
+        try {
+          const q = query(collection(db, 'items'), orderBy('name'));
+          const snap = await getDocs(q);
+          itemsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          renderItems();
+        } catch (err) {
+          console.error('fetchItems primary error', err);
+          showToast('Error cargando items: ' + (err.message || err), 'error', 4500);
+          try {
+            const snap2 = await getDocs(collection(db, 'items'));
+            itemsCache = snap2.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderItems();
+            showToast('Items cargados (modo fallback)', 'info');
+          } catch (err2) {
+            console.error('fetchItems fallback error', err2);
+            showToast('No se pudieron cargar items', 'error');
+          }
+        }
+      }
+
+      async function saveItem(payload, existingId = null) {
+        if (!payload.name) { showToast('Nombre obligatorio', 'error'); return; }
+        if (payload.price == null || isNaN(payload.price)) { showToast('Precio obligatorio y numérico', 'error'); return; }
+        try {
+          if (existingId) {
+            await setDoc(doc(db, 'items', existingId), { ...payload, updatedAt: serverTimestamp() }, { merge: true });
+            showToast('Producto actualizado', 'success');
+          } else {
+            await addDoc(collection(db, 'items'), { ...payload, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+            showToast('Producto creado', 'success');
+          }
+        } catch (e) {
+          console.error('saveItem error', e);
+          showToast('Error guardando: ' + (e.message || e), 'error');
+        }
+      }
+
+      async function deleteItemById(id) {
+        try { await deleteDoc(doc(db, 'items', id)); showToast('Eliminado', 'info'); }
+        catch (e) { console.error('delete error', e); showToast('No se pudo eliminar: ' + (e.message || e), 'error'); }
+      }
+
+      function renderCategories() {
+        if (!categorySelect || !filterCategory) return;
+        categorySelect.innerHTML = '<option value="">-- Seleccione --</option>';
+        categoriesCache.forEach(c => { const o = document.createElement('option'); o.value = c.name; o.textContent = c.name; categorySelect.appendChild(o); });
+        filterCategory.innerHTML = '<option value="">Todas</option>';
+        categoriesCache.forEach(c => { const o = document.createElement('option'); o.value = c.name; o.textContent = c.name; filterCategory.appendChild(o); });
+      }
+
+      function formatMoney(value, currency = 'ARS') {
+        try { return new Intl.NumberFormat('es-AR', { style: 'currency', currency }).format(Number(value)); } catch (e) { return String(value); }
+      }
+
+      function renderItems() {
+        if (!itemsDiv) return;
+        const q = (searchInput?.value || '').trim().toLowerCase();
+        const cat = (filterCategory?.value || '').trim();
+        let list = itemsCache.slice();
+        if (cat) list = list.filter(i => i.category === cat);
+        if (q) list = list.filter(i => (i.name || '').toLowerCase().includes(q) || (i.description || '').toLowerCase().includes(q));
+        const sortVal = sortBy?.value || 'name';
+        if (sortVal === 'name') list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        if (sortVal === 'price') list.sort((a, b) => (a.price || 0) - (b.price || 0));
+        if (sortVal === 'quantity') list.sort((a, b) => (b.quantity || 0) - (a.quantity || 0));
+        itemsDiv.innerHTML = '';
+        list.forEach(it => {
+          const card = document.createElement('div'); card.className = 'item-card';
+          const meta = document.createElement('div'); meta.className = 'item-meta';
+          const title = document.createElement('div'); title.innerHTML = '<b>' + escapeHtml(it.name) + '</b> <span class="muted">x' + (it.quantity || 0) + '</span>';
+          const desc = document.createElement('div'); desc.className = 'description'; desc.textContent = it.description || '';
+          const catEl = document.createElement('div'); catEl.className = 'category-pill'; catEl.textContent = it.category || '(Sin categoría)';
+          // apply dynamic color for category badge
+          const styles = badgeStylesFromName(it.category || 'Sin categoría');
+          catEl.style.background = styles.background;
+          catEl.style.color = styles.color;
+          catEl.style.border = styles.border;
+
+          const price = document.createElement('div'); price.className = 'muted'; price.textContent = formatMoney(it.price, it.currency || 'ARS');
+          meta.appendChild(title); meta.appendChild(desc); meta.appendChild(catEl); meta.appendChild(price);
+
+          const right = document.createElement('div'); right.className = 'item-actions';
+          const edit = document.createElement('button'); edit.className = 'small edit';
+          edit.innerHTML = '<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" aria-hidden><path d=\"M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z\" fill=\"currentColor\"/></svg>Editar';
+          edit.onclick = () => populateForm(it);
+
+          const del = document.createElement('button'); del.className = 'small del';
+          del.innerHTML = '<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" aria-hidden><path d=\"M3 6h18M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6M10 6V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v2\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Eliminar';
+          del.onclick = async () => { if (confirm('Eliminar?')) await deleteItemById(it.id); };
+
+          right.appendChild(edit); right.appendChild(del);
+          card.appendChild(meta); card.appendChild(right);
+          itemsDiv.appendChild(card);
+        });
+        countItemsEl.textContent = `${itemsCache.length} items`;
+        if (itemsCount) itemsCount.textContent = `${itemsCache.length} items`;
+      }
+
+      function escapeHtml(s) { if (!s) return ''; return s.replace(/[&<>'\\"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": "&#39;" }[c])); }
+
+      function populateForm(it) {
+        document.getElementById('itemId').value = it.id || '';
+        nameInput.value = it.name || '';
+        quantityInput.value = it.quantity || 0;
+        categorySelect.value = it.category || '';
+        newCategoryInput.value = '';
+        priceInput.value = (it.price != null) ? it.price : '';
+        currencySelect.value = it.currency || 'ARS';
+        descriptionInput.value = it.description || '';
+        btnAdd.click();
+      }
+
+      function resetForm() { itemForm.reset(); document.getElementById('itemId').value = ''; }
+
+      itemForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        let cat = (categorySelect?.value || '').trim();
+        const newCat = (newCategoryInput?.value || '').trim();
+        if (!cat && !newCat) { showToast('Seleccionar o crear categoría', 'error'); return; }
+        if (newCat) { const c = await addCategory(newCat); if (c) cat = c.name; else { showToast('No se creó categoría', 'error'); return; } newCategoryInput.value = ''; }
+        const priceVal = priceInput.value.trim();
+        const priceNum = priceVal === '' ? null : Number(priceVal);
+        if (priceNum == null || isNaN(priceNum)) { showToast('Precio inválido', 'error'); return; }
+        const payload = { name: nameInput.value.trim(), quantity: Number(quantityInput.value) || 0, category: cat, price: priceNum, currency: currencySelect.value || 'ARS', description: descriptionInput.value.trim() };
+        const existing = document.getElementById('itemId').value || null;
+        await saveItem(payload, existing);
+        resetForm();
+      });
+
+      resetBtn.addEventListener('click', () => { resetForm(); showToast('Formulario limpiado', 'info'); });
+      searchInput.addEventListener('input', debounce(() => renderItems()));
+      filterCategory.addEventListener('change', () => renderItems());
+      sortBy.addEventListener('change', () => renderItems());
+
+      await fetchCategories();
+      await fetchItems();
+
+      try {
+        onSnapshot(query(collection(db, 'items'), orderBy('name')),
+          snap => { itemsCache = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderItems(); },
+          err => { console.error('onSnapshot items error', err); showToast('Realtime items error: ' + (err.message || err), 'error'); }
+        );
+        onSnapshot(query(collection(db, 'categories'), orderBy('name')),
+          snap => { categoriesCache = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderCategories(); },
+          err => { console.error('onSnapshot categories error', err); showToast('Realtime categories error: ' + (err.message || err), 'error'); }
+        );
+        if (statusSpan) statusSpan.textContent = 'Conectado';
+        showToast('Conectado', 'success');
+      } catch (e) {
+        console.warn('realtime init error', e);
+        if (statusSpan) statusSpan.textContent = 'Conectado (sin realtime)';
+        showToast('Conectado (sin realtime)', 'info');
+      }
+    });
+  </script>
+</body>
+
+</html>
