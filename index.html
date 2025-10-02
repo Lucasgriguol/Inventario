@@ -15,6 +15,13 @@
       --success: #d1f7dc;
       --danger: #ffd6d6;
       --toast-info: #fff7e6;
+      /* colores dorados */
+      --gold-100: #fff7e6;
+      --gold-200: #ffe6a7;
+      --gold-300: #ffd166;
+      --gold-400: #e6b800;
+      --gold-text: #3b2d00;
+      --gold-border: rgba(230, 184, 0, 0.5);
     }
 
     * {
@@ -222,6 +229,16 @@
       box-shadow: 0 18px 40px rgba(12, 10, 25, 0.08)
     }
 
+    .item-thumb {
+      width: 80px;
+      height: 80px;
+      flex: 0 0 80px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      background: linear-gradient(180deg, #fff, #f6f6f8);
+    }
+
     .item-meta {
       display: flex;
       flex-direction: column;
@@ -283,6 +300,21 @@
       font-weight: 700;
       box-shadow: 0 4px 12px rgba(12, 10, 25, 0.04);
       border: 1px solid rgba(0, 0, 0, 0.03);
+    }
+
+    /* Nuevo: estilo doradito fijo para la "categoría principal" en inventario */
+    .main-category-pill {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      color: var(--gold-text);
+      margin-top: 6px;
+      margin-left: 6px;
+      font-weight: 800;
+      box-shadow: 0 6px 18px rgba(230, 184, 0, 0.14);
+      border: 1px solid var(--gold-border);
+      background: linear-gradient(180deg, var(--gold-100), var(--gold-300));
     }
 
     .topbar {
@@ -485,10 +517,16 @@
             </div>
           </div>
 
+          <!-- NUEVO: Categoría principal (obligatoria) -->
           <div class="row">
             <div style="flex:1">
-              <label>Precio</label>
-              <input id="price" type="number" min="0" step="0.01" placeholder="0.00" />
+              <label>Categoría principal <span style="color:#a33">*</span></label>
+              <select id="mainCategory" required>
+                <option value="">-- Seleccione --</option>
+                <option value="Uso automotor">Uso automotor</option>
+                <option value="Uso para el hogar">Uso para el hogar</option>
+                <option value="Uso Universal">Uso Universal</option>
+              </select>
             </div>
             <div style="width:140px">
               <label>Moneda</label>
@@ -496,6 +534,17 @@
                 <option value="ARS">ARS</option>
                 <option value="USD">USD</option>
               </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div style="flex:1">
+              <label>Precio</label>
+              <input id="price" type="number" min="0" step="0.01" placeholder="0.00" />
+            </div>
+            <div style="width:140px">
+              <label>Link imagen (opcional)</label>
+              <input id="imageUrl" placeholder="https://..." />
             </div>
           </div>
 
@@ -609,7 +658,8 @@
       const filterCategory = document.getElementById('filterCategory');
       const sortBy = document.getElementById('sortBy');
       const countItemsEl = document.getElementById('countItems');
-      const itemsCount = document.getElementById('itemsCount');
+      const mainCategorySelect = document.getElementById('mainCategory');
+      const imageUrlInput = document.getElementById('imageUrl');
 
       btnAdd.onclick = () => { viewAdd.classList.remove('hidden'); viewInventory.classList.add('hidden'); btnAdd.classList.add('active'); btnInventory.classList.remove('active'); }
       btnInventory.onclick = () => { viewInventory.classList.remove('hidden'); viewAdd.classList.add('hidden'); btnInventory.classList.add('active'); btnAdd.classList.remove('active'); }
@@ -669,13 +719,19 @@
 
       async function saveItem(payload, existingId = null) {
         if (!payload.name) { showToast('Nombre obligatorio', 'error'); return; }
+        if (!payload.mainCategory) { showToast('Categoría principal obligatoria', 'error'); return; }
         if (payload.price == null || isNaN(payload.price)) { showToast('Precio obligatorio y numérico', 'error'); return; }
         try {
           if (existingId) {
             await setDoc(doc(db, 'items', existingId), { ...payload, updatedAt: serverTimestamp() }, { merge: true });
+            const ix = itemsCache.findIndex(x => x.id === existingId);
+            if (ix >= 0) { itemsCache[ix] = { id: existingId, ...itemsCache[ix], ...payload }; }
+            renderItems();
             showToast('Producto actualizado', 'success');
           } else {
-            await addDoc(collection(db, 'items'), { ...payload, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+            const ref = await addDoc(collection(db, 'items'), { ...payload, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+            itemsCache.push({ id: ref.id, ...payload });
+            renderItems();
             showToast('Producto creado', 'success');
           }
         } catch (e) {
@@ -685,8 +741,15 @@
       }
 
       async function deleteItemById(id) {
-        try { await deleteDoc(doc(db, 'items', id)); showToast('Eliminado', 'info'); }
-        catch (e) { console.error('delete error', e); showToast('No se pudo eliminar: ' + (e.message || e), 'error'); }
+        try {
+          await deleteDoc(doc(db, 'items', id));
+          itemsCache = itemsCache.filter(i => i.id !== id);
+          renderItems();
+          showToast('Eliminado', 'info');
+        } catch (e) {
+          console.error('delete error', e);
+          showToast('No se pudo eliminar: ' + (e.message || e), 'error');
+        }
       }
 
       function renderCategories() {
@@ -713,36 +776,72 @@
         if (sortVal === 'price') list.sort((a, b) => (a.price || 0) - (b.price || 0));
         if (sortVal === 'quantity') list.sort((a, b) => (b.quantity || 0) - (a.quantity || 0));
         itemsDiv.innerHTML = '';
-        list.forEach(it => {
-          const card = document.createElement('div'); card.className = 'item-card';
-          const meta = document.createElement('div'); meta.className = 'item-meta';
-          const title = document.createElement('div'); title.innerHTML = '<b>' + escapeHtml(it.name) + '</b> <span class="muted">x' + (it.quantity || 0) + '</span>';
-          const desc = document.createElement('div'); desc.className = 'description'; desc.textContent = it.description || '';
-          const catEl = document.createElement('div'); catEl.className = 'category-pill'; catEl.textContent = it.category || '(Sin categoría)';
-          // apply dynamic color for category badge
-          const styles = badgeStylesFromName(it.category || 'Sin categoría');
-          catEl.style.background = styles.background;
-          catEl.style.color = styles.color;
-          catEl.style.border = styles.border;
 
-          const price = document.createElement('div'); price.className = 'muted'; price.textContent = formatMoney(it.price, it.currency || 'ARS');
-          meta.appendChild(title); meta.appendChild(desc); meta.appendChild(catEl); meta.appendChild(price);
+        if (list.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'panel';
+          empty.style.background = 'transparent';
+          empty.style.boxShadow = 'none';
+          empty.style.border = '0';
+          empty.textContent = 'No hay items para los criterios seleccionados.';
+          itemsDiv.appendChild(empty);
+        } else {
+          list.forEach(it => {
+            const card = document.createElement('div'); card.className = 'item-card';
 
-          const right = document.createElement('div'); right.className = 'item-actions';
-          const edit = document.createElement('button'); edit.className = 'small edit';
-          edit.innerHTML = '<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" aria-hidden><path d=\"M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z\" fill=\"currentColor\"/></svg>Editar';
-          edit.onclick = () => populateForm(it);
+            // optional thumbnail if imageUrl provided
+            if (it.imageUrl) {
+              const img = document.createElement('img');
+              img.className = 'item-thumb';
+              img.src = it.imageUrl;
+              img.alt = (it.name || 'imagen');
+              img.onerror = () => { img.style.display = 'none'; };
+              card.appendChild(img);
+            }
 
-          const del = document.createElement('button'); del.className = 'small del';
-          del.innerHTML = '<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" aria-hidden><path d=\"M3 6h18M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6M10 6V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v2\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Eliminar';
-          del.onclick = async () => { if (confirm('Eliminar?')) await deleteItemById(it.id); };
+            const meta = document.createElement('div'); meta.className = 'item-meta';
+            const title = document.createElement('div'); title.innerHTML = '<b>' + escapeHtml(it.name) + '</b> <span class="muted">x' + (it.quantity || 0) + '</span>';
+            const desc = document.createElement('div'); desc.className = 'description'; desc.textContent = it.description || '';
+            const catEl = document.createElement('div'); catEl.className = 'category-pill'; catEl.textContent = it.category || '(Sin categoría)';
+            // apply dynamic color for category badge
+            const styles = badgeStylesFromName(it.category || 'Sin categoría');
+            catEl.style.background = styles.background;
+            catEl.style.color = styles.color;
+            catEl.style.border = styles.border;
 
-          right.appendChild(edit); right.appendChild(del);
-          card.appendChild(meta); card.appendChild(right);
-          itemsDiv.appendChild(card);
-        });
-        countItemsEl.textContent = `${itemsCache.length} items`;
-        if (itemsCount) itemsCount.textContent = `${itemsCache.length} items`;
+            meta.appendChild(title);
+            meta.appendChild(desc);
+            meta.appendChild(catEl);
+
+            // Mostrar categoría principal con pill estilado (si existe)
+            if (it.mainCategory) {
+              const mainCatEl = document.createElement('div');
+              mainCatEl.className = 'main-category-pill';
+              mainCatEl.textContent = it.mainCategory;
+              // color doradito fijo via CSS; no override dinámico
+              meta.appendChild(mainCatEl);
+            }
+
+            const price = document.createElement('div'); price.className = 'muted'; price.textContent = formatMoney(it.price, it.currency || 'ARS');
+            meta.appendChild(price);
+
+            const right = document.createElement('div'); right.className = 'item-actions';
+            const edit = document.createElement('button'); edit.className = 'small edit';
+            edit.innerHTML = '<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" aria-hidden><path d=\"M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z\" fill=\"currentColor\"/></svg>Editar';
+            edit.onclick = () => populateForm(it);
+
+            const del = document.createElement('button'); del.className = 'small del';
+            del.innerHTML = '<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" aria-hidden><path d=\"M3 6h18M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6M10 6V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v2\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Eliminar';
+            del.onclick = async () => { if (confirm('Eliminar?')) await deleteItemById(it.id); };
+
+            right.appendChild(edit); right.appendChild(del);
+            card.appendChild(meta); card.appendChild(right);
+            itemsDiv.appendChild(card);
+          });
+        }
+
+        // contador muestra total de items (podés ajustar a list.length si querés mostrar sólo filtrados)
+        countItemsEl.textContent = `${itemsCache.length} items (mostrando ${list.length})`;
       }
 
       function escapeHtml(s) { if (!s) return ''; return s.replace(/[&<>'\\"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": "&#39;" }[c])); }
@@ -750,27 +849,40 @@
       function populateForm(it) {
         document.getElementById('itemId').value = it.id || '';
         nameInput.value = it.name || '';
-        quantityInput.value = it.quantity || 0;
+        quantityInput.value = (it.quantity != null && it.quantity !== '') ? it.quantity : 1;
         categorySelect.value = it.category || '';
         newCategoryInput.value = '';
         priceInput.value = (it.price != null) ? it.price : '';
         currencySelect.value = it.currency || 'ARS';
         descriptionInput.value = it.description || '';
+        mainCategorySelect.value = it.mainCategory || '';
+        imageUrlInput.value = it.imageUrl || '';
         btnAdd.click();
       }
 
-      function resetForm() { itemForm.reset(); document.getElementById('itemId').value = ''; }
+      function resetForm() { itemForm.reset(); document.getElementById('itemId').value = ''; mainCategorySelect.value = ''; imageUrlInput.value = ''; }
 
       itemForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         let cat = (categorySelect?.value || '').trim();
         const newCat = (newCategoryInput?.value || '').trim();
+        const mainCat = (mainCategorySelect?.value || '').trim();
+        if (!mainCat) { showToast('Categoría principal obligatoria', 'error'); return; }
         if (!cat && !newCat) { showToast('Seleccionar o crear categoría', 'error'); return; }
         if (newCat) { const c = await addCategory(newCat); if (c) cat = c.name; else { showToast('No se creó categoría', 'error'); return; } newCategoryInput.value = ''; }
-        const priceVal = priceInput.value.trim();
+        const priceVal = (priceInput.value || '').toString().trim();
         const priceNum = priceVal === '' ? null : Number(priceVal);
         if (priceNum == null || isNaN(priceNum)) { showToast('Precio inválido', 'error'); return; }
-        const payload = { name: nameInput.value.trim(), quantity: Number(quantityInput.value) || 0, category: cat, price: priceNum, currency: currencySelect.value || 'ARS', description: descriptionInput.value.trim() };
+        const payload = {
+          name: nameInput.value.trim(),
+          quantity: Number(quantityInput.value) || 0,
+          category: cat,
+          price: priceNum,
+          currency: currencySelect.value || 'ARS',
+          description: descriptionInput.value.trim(),
+          mainCategory: mainCat,
+          imageUrl: (imageUrlInput.value || '').trim() || null
+        };
         const existing = document.getElementById('itemId').value || null;
         await saveItem(payload, existing);
         resetForm();
